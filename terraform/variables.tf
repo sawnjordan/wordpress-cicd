@@ -22,3 +22,14 @@ variable "private_subnets" {
   default     = ["10.0.10.0/24", "10.0.11.0/24", "10.0.20.0/24", "10.0.21.0/24"]
   description = "Private Subnets"
 }
+variable "alb_sg_name" {
+  description = "Name of the ALB Security Group"
+  type        = string
+  default     = "alb-sg"
+}
+
+variable "app_sg_name" {
+  description = "Name of the Application Security Group"
+  type        = string
+  default     = "app-sg"
+}
