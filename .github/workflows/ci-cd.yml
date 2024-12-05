@@ -1,0 +1,53 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      # - develop
+    paths:
+      - "wp-content/**"
+      - ".github/**"
+  pull_request:
+    branches:
+      - main
+      # - develop
+    paths:
+      - "wp-content/**"
+      - ".github/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set image tag global
+        id: vars
+        run: |
+          SHA_SHORT=$(git rev-parse --short HEAD)
+          echo "SHA_SHORT=$SHA_SHORT"
+          echo "::set-output name=sha_short::$SHA_SHORT"
+
+      - name: Check image tag
+        run: echo ${{ steps.vars.outputs.sha_short }}
+
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKER_TOKEN }}" | docker login --username "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+            -t "${{ secrets.DOCKER_USERNAME }}/wordpress-demo:${{ steps.vars.outputs.sha_short }}" \
+            -f docker/prod/Dockerfile \
+            .
+
+      - name: List docker image
+        run: docker images
+
+      - name: Push Docker Image to Docker Hub
+        run: |
+          docker push "${{ secrets.DOCKER_USERNAME }}/wordpress-demo:${{ steps.vars.outputs.sha_short }}"
