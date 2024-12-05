@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  wordpress:
+    container_name: wordpress-container
+    image: wordpress:6.7.1-php8.3-apache
+    restart: always
+    build:
+      context: .
+      dockerfile: docker/prod/Dockerfile
+    env_file: .env.prod
+    ports:
+      - "80:80"
+    depends_on:
+      - db
+    networks:
+      - sj-wordpress-network
+
+  db:
+    # We need to skip this if using RDS. Configure `WORDPRESS_DB_HOST` to the RDS endpoint.
+    image: mysql:5.7
+    env_file: .env.prod
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - sj-wordpress-network
+
+volumes:
+  db_data:
+
+networks:
+  sj-wordpress-network:
+    name: sj-wordpress-network

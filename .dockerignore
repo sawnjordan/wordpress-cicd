@@ -1,0 +1,44 @@
+# Ignore .git and other version control system files
+.git
+.gitignore
+
+# Ignore Docker-related files that shouldn't be included in the image build context
+.dockerignore
+Dockerfile
+
+# Ignore IDE and editor-specific files
+.vscode
+.idea
+
+# Ignore local environment and configuration files
+.env
+.env.local
+.env.dev
+.env.prod
+
+# Ignore node_modules (if using npm for frontend development)
+node_modules/
+
+# Ignore WordPress upload and cache directories that are outside wp-content
+wp-content/uploads/
+wp-content/cache/
+wp-content/upgrade/
+
+# Ignore backup files and directories
+*.bak
+*.swp
+*.swo
+
+# Ignore logs
+*.log
+*.out
+
+# Ignore macOS-specific files
+.DS_Store
+
+# Ignore Windows-specific files
+Thumbs.db
+
+# Ignore any other system files or IDE files
+*.tmp
+*.log

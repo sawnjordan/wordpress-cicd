@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  wordpress:
+    container_name: wordpress-container
+    image: wordpress:6.7.1-php8.3-apache
+    restart: always
+    build:
+      context: .
+      dockerfile: docker/dev/Dockerfile
+    env_file: .env.dev
+    ports:
+      - "8000:80"
+    volumes:
+      - ./wp-content:/var/www/html/wp-content
+      # - ./:/var/www/html
+    depends_on:
+      - db
+    networks:
+      - sj-wordpress-network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: always
+    container_name: phpmyadmin
+    ports:
+      - 8081:80
+    depends_on:
+      - db
+    env_file: .env.dev
+    networks:
+      - sj-wordpress-network
+
+  db:
+    container_name: db-container
+    image: mysql:5.7
+    ports:
+      - 3306:3306
+    restart: always
+    env_file: .env.dev
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - sj-wordpress-network
+
+volumes:
+  db_data:
+
+networks:
+  sj-wordpress-network:
+    name: sj-wordpress-network
