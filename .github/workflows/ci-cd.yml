@@ -36,12 +36,12 @@ jobs:
 
       - name: Login to Docker Hub
         run: |
-          docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin <<< "${{ secrets.DOCKER_TOKEN }}"
+          docker login --username ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin <<< "${{ secrets.DOCKER_TOKEN }}"
 
       - name: Build Docker Image
         run: |
           docker build \
-            -t "${{ secrets.DOCKER_USERNAME }}/wordpress-demo:${{ steps.vars.outputs.sha_short }}" \
+            -t "${{ secrets.DOCKERHUB_USERNAME }}/wordpress-demo:${{ steps.vars.outputs.sha_short }}" \
             -f docker/prod/Dockerfile \
             .
 
@@ -50,4 +50,4 @@ jobs:
 
       - name: Push Docker Image to Docker Hub
         run: |
-          docker push "${{ secrets.DOCKER_USERNAME }}/wordpress-demo:${{ steps.vars.outputs.sha_short }}"
+          docker push "${{ secrets.DOCKERHUB_USERNAME }}/wordpress-demo:${{ steps.vars.outputs.sha_short }}"
