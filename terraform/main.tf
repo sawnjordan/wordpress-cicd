@@ -22,58 +22,29 @@ module "security_groups" {
   app_sg_name = var.app_sg_name
 }
 
-# Create Target Group for the ALB with IP target type
-resource "aws_lb_target_group" "app_target_group" {
-  name     = "app-target-group"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = module.vpc.vpc_id
-
-  target_type = "ip"
-
-  health_check {
-    protocol            = "HTTP"
-    path                = "/"
-    interval            = 10
-    timeout             = 5
-    healthy_threshold   = 3
-    unhealthy_threshold = 3
-  }
-}
-
-# ALB creation
-resource "aws_lb" "alb" {
-  name                       = "wordpress-alb"
-  internal                   = false
-  load_balancer_type         = "application"
-  security_groups            = [module.security_groups.alb_sg_id]
-  subnets                    = var.public_subnets
-  enable_deletion_protection = false
-
+module "alb" {
+  source                           = "./modules/alb"
+  target_group_name                = "app-target-group"
+  target_group_port                = 80
+  target_group_protocol            = "HTTP"
+  vpc_id                           = module.vpc.vpc_id
+  target_type                      = "ip"
+  health_check_path                = "/"
+  health_check_protocol            = "HTTP"
+  health_check_interval            = 10
+  health_check_timeout             = 5
+  healthy_threshold                = 3
+  unhealthy_threshold              = 3
+  alb_name                         = "sj-wordpress-demo-alb"
+  alb_internal                     = false
+  security_groups                  = [module.security_groups.alb_sg_id]
+  public_subnets                   = var.public_subnets
+  enable_deletion_protection       = false
   enable_cross_zone_load_balancing = true
-
-  subnet_mapping {
-    subnet_id = module.vpc.public_subnets[0]
-  }
-
-  subnet_mapping {
-    subnet_id = module.vpc.public_subnets[1]
-  }
-
+  listener_port                    = 80
+  listener_protocol                = "HTTP"
 }
 
-# HTTP Listener for ALB
-resource "aws_lb_listener" "http_listener" {
-  load_balancer_arn = aws_lb.alb.arn
-
-  port     = 80
-  protocol = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.app_target_group.arn
-  }
-}
 
 # Create IAM Role for ECS Task Execution
 resource "aws_iam_role" "ecs_task_execution_role" {
@@ -156,9 +127,9 @@ resource "aws_ecs_service" "ecs_service" {
   }
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.app_target_group.arn # Target Group for load balancing
-    container_name   = "sj-wordpress-demo"                      # Name of the container in the task definition
-    container_port   = 80                                       # Port on the container to be load balanced
+    target_group_arn = module.alb.target_group_arn
+    container_name   = "sj-wordpress-demo"
+    container_port   = 80
   }
 }
 
