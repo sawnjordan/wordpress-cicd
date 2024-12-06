@@ -68,25 +68,20 @@ module "ecs_iam_role" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+module "ecs_service" {
+  source = "./modules/ecs-service"
 
-resource "aws_ecs_cluster" "ecs_cluster" {
-  name = "sj-wordpress-demo-ecs-cluster"
-}
-
-resource "aws_ecs_task_definition" "ecs_task" {
-  family                   = "wordpress-ecs-task"
-  execution_role_arn       = module.ecs_iam_role.role_arn
-  task_role_arn            = module.ecs_iam_role.role_arn
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = 1024
-  memory                   = 1024
-
-  container_definitions = <<TASK_DEFINITION
+  cluster_name          = "sj-wordpress-demo-ecs-cluster"
+  task_family           = "sj-wordpress-demo-task"
+  execution_role_arn    = module.ecs_iam_role.role_arn
+  task_role_arn         = module.ecs_iam_role.role_arn
+  task_cpu              = 1024
+  task_memory           = 1024
+  container_definitions = <<DEFINITION
 [
   {
     "name": "sj-wordpress-demo",
-    "image": "sawnjordan/wordpress-demo:ef50351", 
+    "image": "sawnjordan/wordpress-demo:ef50351",
     "cpu": 1024,
     "memory": 1024,
     "essential": true,
@@ -97,42 +92,26 @@ resource "aws_ecs_task_definition" "ecs_task" {
         "protocol": "tcp"
       }
     ],
-      "logConfiguration": {
+    "logConfiguration": {
       "logDriver": "awslogs",
       "options": {
-        "awslogs-group": "/ecs/wordpress-ecs-task",     
-        "awslogs-region": "aps1-az1",                  
+        "awslogs-group": "/ecs/wordpress",
+        "awslogs-region": "aps1-az1",
         "awslogs-stream-prefix": "ecs"
       }
     }
   }
 ]
-TASK_DEFINITION
+DEFINITION
 
-  tags = {
-    Name = "wordpress-task"
-  }
+  service_name     = "sj-wordpress-demo-service"
+  desired_count    = 1
+  private_subnets  = module.vpc.private_subnets
+  security_groups  = [module.security_groups.app_sg_id]
+  target_group_arn = module.alb.target_group_arn
+  container_name   = "sj-wordpress-demo"
+  container_port   = 80
 }
-
-resource "aws_ecs_service" "ecs_service" {
-  name            = "wordpress-ecs-service"
-  cluster         = aws_ecs_cluster.ecs_cluster.id
-  task_definition = aws_ecs_task_definition.ecs_task.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-  network_configuration {
-    subnets         = module.vpc.private_subnets
-    security_groups = [module.security_groups.app_sg_id]
-  }
-
-  load_balancer {
-    target_group_arn = module.alb.target_group_arn
-    container_name   = "sj-wordpress-demo"
-    container_port   = 80
-  }
-}
-
-
 
 # CloudWatch Alarm for CPU Utilization (Threshold: 85%)
 resource "aws_cloudwatch_metric_alarm" "cpu_high_alarm" {
@@ -146,8 +125,8 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high_alarm" {
   threshold           = 70
   alarm_actions       = [aws_appautoscaling_policy.scale_up_policy.arn]
   dimensions = {
-    ClusterName = aws_ecs_cluster.ecs_cluster.name
-    ServiceName = aws_ecs_service.ecs_service.name
+    ClusterName = module.ecs_service.ecs_cluster_name
+    ServiceName = module.ecs_service.ecs_service_name
   }
 }
 
@@ -155,7 +134,7 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high_alarm" {
 resource "aws_appautoscaling_policy" "scale_up_policy" {
   name               = "scale-up-policy"
   policy_type        = "TargetTrackingScaling"
-  resource_id        = "service/${aws_ecs_cluster.ecs_cluster.name}/${aws_ecs_service.ecs_service.name}"
+  resource_id        = "service/${module.ecs_service.ecs_cluster_name}/${module.ecs_service.ecs_service_name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
   target_tracking_scaling_policy_configuration {
@@ -172,7 +151,7 @@ resource "aws_appautoscaling_policy" "scale_up_policy" {
 resource "aws_appautoscaling_policy" "scale_down_policy" {
   name               = "scale-down-policy"
   policy_type        = "TargetTrackingScaling"
-  resource_id        = "service/${aws_ecs_cluster.ecs_cluster.name}/${aws_ecs_service.ecs_service.name}"
+  resource_id        = "service/${module.ecs_service.ecs_cluster_name}/${module.ecs_service.ecs_service_name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
   target_tracking_scaling_policy_configuration {
@@ -189,7 +168,7 @@ resource "aws_appautoscaling_policy" "scale_down_policy" {
 resource "aws_appautoscaling_target" "ecs_service_autoscale" {
   max_capacity       = 20
   min_capacity       = 1
-  resource_id        = "service/${aws_ecs_cluster.ecs_cluster.name}/${aws_ecs_service.ecs_service.name}"
+  resource_id        = "service/${module.ecs_service.ecs_cluster_name}/${module.ecs_service.ecs_service_name}"
   scalable_dimension = "ecs:service:DesiredCount"
   service_namespace  = "ecs"
 }
