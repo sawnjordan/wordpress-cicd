@@ -16,12 +16,14 @@ module "tfstate" {
   tfstate_bucket_name = local.bucket_name
 }
 
+# Security Groups Module
 module "security_groups" {
   source      = "./modules/sg"
   alb_sg_name = var.alb_sg_name
   app_sg_name = var.app_sg_name
 }
 
+# ALB Module
 module "alb" {
   source                           = "./modules/alb"
   target_group_name                = "app-target-group"
@@ -45,10 +47,11 @@ module "alb" {
   listener_protocol                = "HTTP"
 }
 
+# ECS IAM Module
+module "ecs_iam_role" {
+  source = "./modules/iam"
 
-# Create IAM Role for ECS Task Execution
-resource "aws_iam_role" "ecs_task_execution_role" {
-  name = "sjdemo-ecs-task-execution-role"
+  role_name = "sjdemo-ecs-task-execution-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -62,13 +65,9 @@ resource "aws_iam_role" "ecs_task_execution_role" {
       }
     ]
   })
-}
-
-# Attach the AmazonECSTaskExecutionRolePolicy managed policy to the role
-resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_policy_attachment" {
-  role       = aws_iam_role.ecs_task_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
+
 
 resource "aws_ecs_cluster" "ecs_cluster" {
   name = "sj-wordpress-demo-ecs-cluster"
@@ -76,8 +75,8 @@ resource "aws_ecs_cluster" "ecs_cluster" {
 
 resource "aws_ecs_task_definition" "ecs_task" {
   family                   = "wordpress-ecs-task"
-  execution_role_arn       = aws_iam_role.ecs_task_execution_role.arn
-  task_role_arn            = aws_iam_role.ecs_task_execution_role.arn
+  execution_role_arn       = module.ecs_iam_role.role_arn
+  task_role_arn            = module.ecs_iam_role.role_arn
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
   cpu                      = 1024
