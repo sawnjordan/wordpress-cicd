@@ -123,52 +123,21 @@ resource "aws_cloudwatch_metric_alarm" "cpu_high_alarm" {
   period              = 60
   statistic           = "Average"
   threshold           = 70
-  alarm_actions       = [aws_appautoscaling_policy.scale_up_policy.arn]
+  alarm_actions       = [module.ecs_autoscaling.scale_up_policy_arn]
   dimensions = {
     ClusterName = module.ecs_service.ecs_cluster_name
     ServiceName = module.ecs_service.ecs_service_name
   }
 }
 
-# Auto Scaling Policy for Scale-Up
-resource "aws_appautoscaling_policy" "scale_up_policy" {
-  name               = "scale-up-policy"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = "service/${module.ecs_service.ecs_cluster_name}/${module.ecs_service.ecs_service_name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-  target_tracking_scaling_policy_configuration {
-    target_value = 85 # Target CPU utilization to maintain
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 300
-  }
+module "ecs_autoscaling" {
+  source                  = "./modules/ecs-autoscaling"
+  max_capacity            = 20
+  min_capacity            = 1
+  resource_id             = "service/${module.ecs_service.ecs_cluster_name}/${module.ecs_service.ecs_service_name}"
+  scale_up_target_value   = 85
+  scale_down_target_value = 20
+  scale_in_cooldown       = 300
+  scale_out_cooldown      = 300
 }
 
-# Auto Scaling Policy for Scale-Down
-resource "aws_appautoscaling_policy" "scale_down_policy" {
-  name               = "scale-down-policy"
-  policy_type        = "TargetTrackingScaling"
-  resource_id        = "service/${module.ecs_service.ecs_cluster_name}/${module.ecs_service.ecs_service_name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-  target_tracking_scaling_policy_configuration {
-    target_value = 20
-    predefined_metric_specification {
-      predefined_metric_type = "ECSServiceAverageCPUUtilization"
-    }
-    scale_in_cooldown  = 300
-    scale_out_cooldown = 300
-  }
-}
-
-# Auto Scaling Target
-resource "aws_appautoscaling_target" "ecs_service_autoscale" {
-  max_capacity       = 20
-  min_capacity       = 1
-  resource_id        = "service/${module.ecs_service.ecs_cluster_name}/${module.ecs_service.ecs_service_name}"
-  scalable_dimension = "ecs:service:DesiredCount"
-  service_namespace  = "ecs"
-}
